@@ -1,259 +1,5 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CSS
-// ─────────────────────────────────────────────────────────────────────────────
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-/* ── DARK THEME (default) ── */
-[data-theme="dark"]{
-  --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;
-  --border:#252d3d;--border2:#2e3a50;
-  --accent:#00d4ff;--accent2:#0099cc;
-  --warn:#ffb020;--danger:#ff4444;--ok:#22c55e;
-  --text:#e8edf5;--muted:#7a8ba0;
-  --shadow:0 4px 24px #00000044;
-  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
-}
-
-/* ── LIGHT THEME ── */
-[data-theme="light"]{
-  --bg:#f0f4f8;--surface:#ffffff;--surface2:#e8edf4;
-  --border:#d1d9e6;--border2:#b8c4d8;
-  --accent:#0077aa;--accent2:#005f8a;
-  --warn:#c87000;--danger:#cc2222;--ok:#1a8c3e;
-  --text:#1a2030;--muted:#5a6a80;
-  --shadow:0 4px 24px #00000018;
-  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
-}
-
-/* ── Fallback :root so artifact renders before JS applies theme ── */
-:root{
-  --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;
-  --border:#252d3d;--border2:#2e3a50;
-  --accent:#00d4ff;--accent2:#0099cc;
-  --warn:#ffb020;--danger:#ff4444;--ok:#22c55e;
-  --text:#e8edf5;--muted:#7a8ba0;--shadow:0 4px 24px #00000044;
-  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
-}
-
-body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;transition:background .25s,color .25s}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:var(--surface)}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-.app{display:flex;flex-direction:column;min-height:100vh}
-.topbar{display:flex;align-items:center;gap:16px;padding:0 24px;height:56px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
-.logo{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.12em;font-weight:600}
-.logo span{color:var(--muted)}
-.badge{font-family:var(--mono);font-size:10px;background:var(--accent);color:#000;padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:.08em}
-.badge-role{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:.06em}
-.badge-pm{background:#00d4ff22;color:var(--accent);border:1px solid #00d4ff44}
-.badge-rv{background:#a855f722;color:#a855f7;border:1px solid #a855f744}
-.proj-crumb{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:4px;border:1px solid var(--border);transition:.15s}
-.proj-crumb:hover{border-color:var(--accent);color:var(--accent)}
-.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-.tabs{display:flex;gap:2px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--border)}
-.tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;font-weight:500;padding:10px 18px;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;transition:.15s;text-transform:uppercase}
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.content{flex:1;padding:24px;overflow:auto}
-.content-fill{flex:1;overflow:hidden;display:flex;flex-direction:column}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px}
-.card-title{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.stat{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:16px 20px}
-.stat-val{font-family:var(--mono);font-size:28px;font-weight:600;line-height:1}
-.stat-label{font-size:11px;color:var(--muted);margin-top:6px;letter-spacing:.04em;text-transform:uppercase}
-.btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:8px 16px;border-radius:4px;border:none;cursor:pointer;transition:.15s;white-space:nowrap}
-.btn-primary{background:var(--accent);color:#000}
-.btn-primary:hover{background:var(--accent2)}
-.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border2)}
-.btn-ghost:hover{color:var(--text);border-color:var(--text)}
-.btn-ghost.active-tool{color:var(--accent);border-color:var(--accent);background:#00d4ff11}
-.btn-danger{background:transparent;color:var(--danger);border:1px solid #ff444433}
-.btn-danger:hover{background:#ff444422}
-.btn-ok{background:var(--ok);color:#000}
-.btn-ok:hover{opacity:.85}
-.btn-purple{background:#7c3aed;color:#fff}
-.btn-purple:hover{background:#6d28d9}
-.btn-sm{padding:5px 10px;font-size:10px}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.form-group{display:flex;flex-direction:column;gap:6px}
-.label{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-input,select,textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;border-radius:4px;outline:none;width:100%;transition:.15s}
-input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-textarea{resize:vertical;min-height:72px}
-select option{background:var(--surface2)}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:12.5px}
-th{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 12px;text-align:left;background:var(--surface2);border-bottom:2px solid var(--border);white-space:nowrap}
-td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
-tr:hover td{background:#1a203088}
-tr.has-comment td{border-left:3px solid #a855f7}
-tr.has-open-comment td{border-left:3px solid var(--warn)}
-.rpn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:700;min-width:44px;padding:3px 8px;border-radius:4px}
-.rpn-low{background:#22c55e22;color:#22c55e;border:1px solid #22c55e44}
-.rpn-med{background:#ffb02022;color:#ffb020;border:1px solid #ffb02044}
-.rpn-high{background:#ff440022;color:#ff4444;border:1px solid #ff444444}
-.rpn-crit{background:#ff000044;color:#ff2222;border:1px solid #ff444488;animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-.sbar{display:flex;gap:2px}
-.sbar-seg{height:6px;flex:1;border-radius:2px;background:var(--border);transition:.2s}
-.sbar-seg.on{background:var(--c)}
-.modal-overlay{position:fixed;inset:0;background:#00000088;backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.modal{background:var(--surface);border:1px solid var(--border2);border-radius:8px;width:min(720px,95vw);max-height:90vh;overflow-y:auto;padding:28px;animation:slideUp .2s cubic-bezier(.16,1,.3,1)}
-.modal-sm{width:min(480px,95vw)}
-.modal-lg{width:min(900px,95vw)}
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
-.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
-.modal-title{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:.06em}
-.matrix-cell{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:700;border-radius:3px}
-.sep{border:none;border-top:1px solid var(--border);margin:20px 0}
-.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
-.filter-bar input{max-width:220px}
-.filter-bar select{max-width:160px}
-.progress-wrap{background:var(--surface2);border-radius:99px;height:6px;overflow:hidden}
-.progress-bar{height:100%;border-radius:99px;transition:.4s}
-.desc-cell{max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chip{display:inline-block;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:99px;font-weight:600}
-.chip-open{background:#ffb02022;color:var(--warn);border:1px solid #ffb02044}
-.chip-closed{background:#22c55e22;color:var(--ok);border:1px solid #22c55e44}
-.chip-review{background:#00d4ff22;color:var(--accent);border:1px solid #00d4ff44}
-
-/* ── THEME TOGGLE BUTTON ── */
-.theme-toggle{
-  display:inline-flex;align-items:center;gap:6px;
-  font-family:var(--mono);font-size:11px;font-weight:600;
-  letter-spacing:.04em;padding:5px 12px;border-radius:20px;
-  border:1px solid var(--border2);background:var(--surface2);
-  color:var(--muted);cursor:pointer;transition:.2s;white-space:nowrap;
-}
-.theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
-.theme-toggle-track{
-  width:32px;height:18px;border-radius:9px;background:var(--border2);
-  position:relative;transition:.25s;flex-shrink:0;
-}
-.theme-toggle-track.on{background:var(--accent)}
-.theme-toggle-thumb{
-  position:absolute;top:2px;left:2px;width:14px;height:14px;
-  border-radius:50%;background:#fff;transition:.25s;box-shadow:0 1px 3px #0004;
-}
-.theme-toggle-track.on .theme-toggle-thumb{left:16px}
-
-/* ── LIGHT THEME SPECIFICS ── */
-[data-theme="light"] tr:hover td{background:#e0e8f488}
-[data-theme="light"] select option{background:#fff;color:#1a2030}
-[data-theme="light"] .topbar{box-shadow:0 1px 0 var(--border)}
-[data-theme="light"] .card{box-shadow:var(--shadow)}
-[data-theme="light"] .stat{box-shadow:var(--shadow)}
-[data-theme="light"] .modal{box-shadow:0 16px 64px #00000020}
-[data-theme="light"] .proj-card:hover{box-shadow:0 8px 32px #0077aa18}
-[data-theme="light"] .login-screen::before{background:radial-gradient(ellipse 60% 50% at 50% 30%,#0077aa0a,transparent)}
-[data-theme="light"] .bd-canvas-wrap{background:#f5f8fc}
-[data-theme="light"] .bd-canvas-wrap svg [fill="#475569"]{fill:#64748b}
-[data-theme="light"] input[type="range"]{background:var(--border2)}
-/* LOGIN */
-.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
-.login-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 30%,#00d4ff08,transparent)}
-.login-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:40px;width:min(420px,90vw);position:relative;z-index:1}
-.login-logo{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--accent);letter-spacing:.12em;margin-bottom:4px}
-.login-logo span{color:var(--muted)}
-.login-sub{font-size:12px;color:var(--muted);margin-bottom:32px;font-family:var(--mono)}
-.login-user-card{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:.2s;margin-bottom:8px;background:var(--surface2)}
-.login-user-card:hover{border-color:var(--accent);background:#00d4ff08}
-.login-user-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
-.login-user-name{font-weight:600;font-size:14px}
-.login-user-role{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.login-sep{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:11px}
-.login-sep::before,.login-sep::after{content:'';flex:1;height:1px;background:var(--border)}
-.login-error{background:#ff444411;border:1px solid #ff444433;border-radius:6px;padding:10px 14px;font-size:12px;color:var(--danger);margin-bottom:12px}
-/* PROJECT MANAGER */
-.pm-screen{min-height:100vh;display:flex;flex-direction:column;background:var(--bg)}
-.pm-hero{padding:40px 40px 28px;border-bottom:1px solid var(--border);background:var(--surface)}
-.pm-title{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent);letter-spacing:.1em;margin-bottom:4px}
-.pm-sub{font-size:13px;color:var(--muted)}
-.pm-body{flex:1;padding:32px 40px}
-.pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-.proj-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
-.proj-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:.2s}
-.proj-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 32px #00d4ff11}
-.proj-card:hover::before{opacity:1}
-.proj-card-name{font-weight:600;font-size:15px;margin-bottom:4px}
-.proj-card-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:10px}
-.proj-card-stats{display:flex;gap:12px;flex-wrap:wrap}
-.proj-stat{font-family:var(--mono);font-size:11px;color:var(--muted)}
-.proj-stat span{color:var(--text);font-weight:600}
-.proj-card-actions{position:absolute;top:10px;right:10px;display:flex;gap:4px;opacity:0;transition:.15s}
-.proj-card:hover .proj-card-actions{opacity:1}
-.new-proj-card{background:transparent;border:1px dashed var(--border2);border-radius:8px;padding:20px;cursor:pointer;transition:.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:140px;gap:8px;color:var(--muted)}
-.new-proj-card:hover{border-color:var(--accent);color:var(--accent)}
-.import-zone{border:2px dashed var(--border2);border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:.2s}
-.import-zone:hover,.import-zone.drag{border-color:var(--accent);background:#00d4ff08}
-.import-zone p{color:var(--muted);font-size:12px;margin-top:8px}
-.toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:12px 20px;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:10px;animation:slideUp .25s cubic-bezier(.16,1,.3,1);box-shadow:0 8px 32px #00000066}
-.toast-ok{border-color:#22c55e44;color:#22c55e}
-.toast-err{border-color:#ff444444;color:#ff4444}
-.toast-info{border-color:#00d4ff44;color:#00d4ff}
-/* BLOCK DIAGRAM */
-.bd-wrap{display:flex;flex:1;overflow:hidden;background:var(--bg);min-height:0}
-.bd-sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.bd-sidebar-section{padding:12px;border-bottom:1px solid var(--border)}
-.bd-sidebar-title{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.bd-palette-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;cursor:grab;font-size:12px;border:1px solid var(--border);background:var(--surface2);margin-bottom:4px;transition:.15s;user-select:none}
-.bd-palette-item:hover{border-color:var(--accent);color:var(--accent)}
-.bd-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
-.bd-canvas-wrap{flex:1;position:relative;overflow:hidden}
-.bd-node{position:absolute;border-radius:6px;cursor:move;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:120px;min-height:56px;padding:8px 12px;border:2px solid;font-size:12px;font-weight:600;text-align:center;transition:box-shadow .15s}
-.bd-node:hover{box-shadow:0 0 0 3px #00d4ff33}
-.bd-node.selected{box-shadow:0 0 0 3px #00d4ff88!important}
-.bd-node-label{font-size:12px;font-weight:600;line-height:1.3;pointer-events:none}
-.bd-node-sub{font-family:var(--mono);font-size:9px;margin-top:3px;opacity:.7;pointer-events:none}
-.bd-node-rpn{font-family:var(--mono);font-size:10px;font-weight:700;margin-top:4px;padding:1px 6px;border-radius:3px;pointer-events:none}
-.bd-edge-label{position:absolute;font-family:var(--mono);font-size:10px;background:var(--surface2);border:1px solid var(--border2);padding:2px 6px;border-radius:3px;cursor:pointer;transform:translate(-50%,-50%);white-space:nowrap;z-index:3}
-.bd-props{width:240px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
-.bd-props-title{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
-.bd-legend{padding:12px;overflow-y:auto;flex:1}
-.bd-legend-item{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px}
-.bd-legend-swatch{width:12px;height:12px;border-radius:2px;flex-shrink:0}
-.bd-zoom-badge{position:absolute;bottom:12px;right:12px;font-family:var(--mono);font-size:10px;background:var(--surface);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);pointer-events:none;z-index:10}
-.bd-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--muted)}
-.color-swatches{display:flex;gap:6px;flex-wrap:wrap}
-.color-swatch{width:22px;height:22px;border-radius:4px;cursor:pointer;border:2px solid transparent;transition:.15s}
-.color-swatch:hover,.color-swatch.selected{border-color:#fff}
-/* REVIEW / COMMENTS */
-.comment-bubble{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid transparent;transition:.15s}
-.comment-bubble:hover{border-color:var(--accent)}
-.comment-bubble.has-open{background:#ffb02011;color:var(--warn);border-color:#ffb02033}
-.comment-bubble.has-resolved{background:#a855f711;color:#a855f7;border-color:#a855f733}
-.comment-bubble.empty{color:var(--border2)}
-.comment-bubble.empty:hover{color:var(--muted)}
-.comment-panel{display:flex;flex-direction:column;gap:0;height:100%}
-.comment-entry{padding:14px 16px;border-bottom:1px solid var(--border);position:relative}
-.comment-entry:hover{background:var(--surface2)88}
-.comment-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
-.comment-author{font-weight:600;font-size:12px}
-.comment-time{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.comment-text{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap}
-.comment-actions{display:flex;gap:6px;margin-top:8px}
-.version-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);position:relative}
-.version-line{position:absolute;left:16px;top:0;bottom:0;width:1px;background:var(--border)}
-.version-dot{width:10px;height:10px;border-radius:50%;border:2px solid;flex-shrink:0;margin-top:3px;z-index:1}
-.version-content{flex:1;padding-left:8px}
-.version-label{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--muted)}
-.version-who{font-size:11px;color:var(--muted);margin-top:2px}
-.diff-field{margin-bottom:6px;font-size:12px}
-.diff-old{color:var(--danger);text-decoration:line-through;background:#ff444411;padding:1px 4px;border-radius:2px}
-.diff-new{color:var(--ok);background:#22c55e11;padding:1px 4px;border-radius:2px}
-.review-status-open{color:var(--warn);font-family:var(--mono);font-size:10px;font-weight:600}
-.review-status-resolved{color:var(--ok);font-family:var(--mono);font-size:10px;font-weight:600}
-.user-mgmt-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
-.user-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
-`;
+import { useState, useMemo, useEffect, useRef, useCallback, useEffectEvent } from "react";
+import "./App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -282,11 +28,12 @@ const ROLE_COLORS={PM:"#00d4ff",RV:"#a855f7"};
 const rpnClass=r=>r<=50?"rpn-low":r<=100?"rpn-med":r<=200?"rpn-high":"rpn-crit";
 const rpnColor=r=>r<=50?"#22c55e":r<=100?"#ffb020":r<=200?"#ff4444":"#ff2222";
 const MATRIX_COLOR=(s,o)=>{const v=s*o;return v<=9?"#22c55e":v<=25?"#84cc16":v<=50?"#ffb020":v<=100?"#f97316":"#ef4444";};
+const randomCoord=(base,range)=>Math.round(base+Math.random()*range);
 const uid=()=>Math.random().toString(36).slice(2,9);
 const now=()=>new Date().toISOString();
 const fmtDate=d=>d?new Date(d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}):"—";
 const fmtDateTime=d=>d?new Date(d).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
-const safeName=s=>s.replace(/[^a-z0-9_\-]/gi,"_");
+const safeName=s=>s.replace(/[^a-z0-9_-]/gi,"_");
 const initials=name=>name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -294,26 +41,21 @@ const initials=name=>name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0
 // ─────────────────────────────────────────────────────────────────────────────
 const STORAGE_KEY="dfmea_projects_v2";
 const USERS_KEY="dfmea_users_v1";
-async function loadDB(){
-// try{const r=await window.storage.get(STORAGE_KEY);return r?JSON.parse(r.value):{}}
-  try{const r=localStorage.getItem(STORAGE_KEY);return r?JSON.parse(r):{}}
-  catch{return {}}
+const THEME_KEY="dfmea_theme_v1";
+function loadJSON(key,fallback){
+  try{const r=localStorage.getItem(key);return r?JSON.parse(r):fallback}
+  catch{return fallback}
 }
-async function saveDB(db){
-// try{await window.storage.set(STORAGE_KEY,JSON.stringify(db))}
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(db))}
+function saveJSON(key,value){
+  try{localStorage.setItem(key,JSON.stringify(value))}
   catch(e){console.error(e)}
 }
-async function loadUsers(){
-//  try{const r=await window.storage.get(USERS_KEY);return r?JSON.parse(r.value):null}
-  try{const r=localStorage.getItem(USERS_KEY);return r?JSON.parse(r.value):null}
-  catch{return null}
-}
-async function saveUsers(u){
-//  try{await window.storage.set(USERS_KEY,JSON.stringify(u))}
-  try{localStorage.setItem(USERS_KEY,JSON.stringify(u))}
-  catch(e){console.error(e)}
-}
+const loadDB=async()=>loadJSON(STORAGE_KEY,{});
+const saveDB=async db=>saveJSON(STORAGE_KEY,db);
+const loadUsers=()=>loadJSON(USERS_KEY,null);
+const saveUsers=u=>saveJSON(USERS_KEY,u);
+const loadTheme=()=>{const t=loadJSON(THEME_KEY,"dark");return t==="light"?"light":"dark";};
+const saveTheme=t=>saveJSON(THEME_KEY,t);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEFAULT USERS
@@ -334,6 +76,7 @@ const DEMO_ENTRIES=[
   {id:"d4",subsystem:"I/O Interface",component:"Digital Input Module",function:"Read emergency stop signal",failureMode:"Input stuck HIGH",failureEffect:"E-stop not detected",failureCause:"ESD damage to input clamp",category:"ESD Damage",severity:10,occurrence:2,detection:3,rpn:60,controls:"TVS on inputs, IEC 61000-4-2",action:"Add redundant input channel",responsible:"HW-Lead",dueDate:"2025-05-30",status:"Open",revisedS:10,revisedO:1,revisedD:1,revisedRPN:10,version:1,history:[],comments:[]},
   {id:"d5",subsystem:"Communication",component:"CAN Bus Transceiver",function:"Industrial fieldbus comms",failureMode:"Bus dominant fault",failureEffect:"Network loss — all nodes offline",failureCause:"Short to GND on CAN_L line",category:"Short Circuit",severity:8,occurrence:3,detection:4,rpn:96,controls:"Termination resistors, TVS",action:"Add CAN fault confinement logic",responsible:"HW-Lead",dueDate:"2025-06-15",status:"Closed",revisedS:8,revisedO:2,revisedD:2,revisedRPN:32,version:1,history:[],comments:[]},
 ];
+const EMPTY_DIAGRAM={nodes:[],edges:[]};
 const DEMO_DIAGRAM={
   nodes:[
     {id:"n1",type:"input",  label:"24V DC Supply",subtitle:"External Power",x:60, y:180,w:130,h:60,color:"#1a3020",border:"#22c55e"},
@@ -360,7 +103,8 @@ const DEMO_DIAGRAM={
 // SHARED SMALL COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 function Toast({msg,type,onDone}){
-  useEffect(()=>{const t=setTimeout(onDone,2800);return()=>clearTimeout(t);},[]);
+  const done=useEffectEvent(onDone);
+  useEffect(()=>{const t=setTimeout(()=>done(),2800);return()=>clearTimeout(t);},[]);
   return <div className={`toast toast-${type}`}>{type==="ok"?"✓":type==="err"?"✕":"ℹ"} {msg}</div>;
 }
 function RPNChip({value}){return <span className={`rpn ${rpnClass(value)}`}>{value}</span>;}
@@ -400,7 +144,7 @@ function LoginScreen({users, onLogin, theme, onToggleTheme}){
 
   return(
     <div className="login-screen">
-      <style>{CSS}</style>
+      
       <div className="login-box">
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
           <div className="login-logo">DFMEA<span>·TOOL</span></div>
@@ -858,7 +602,7 @@ function NewProjectModal({onCreate,onClose}){
 // ─────────────────────────────────────────────────────────────────────────────
 // PROJECT MANAGER
 // ─────────────────────────────────────────────────────────────────────────────
-function ProjectManager({onOpen,currentUser,users,onLogout,onManageUsers,onSaveUsers,theme,onToggleTheme}){
+function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,onToggleTheme}){
   const [db,setDb]=useState(null);
   const [newModal,setNewModal]=useState(false);
   const [delId,setDelId]=useState(null);
@@ -905,12 +649,12 @@ function ProjectManager({onOpen,currentUser,users,onLogout,onManageUsers,onSaveU
 
   const onDrop=(e)=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)handleFileImport(f);};
 
-  if(db===null)return(<div className="pm-screen" style={{alignItems:"center",justifyContent:"center"}}><style>{CSS}</style><span style={{fontFamily:"var(--mono)",color:"var(--muted)"}}>Loading…</span></div>);
+  if(db===null)return(<div className="pm-screen" style={{alignItems:"center",justifyContent:"center"}}><span style={{fontFamily:"var(--mono)",color:"var(--muted)"}}>Loading…</span></div>);
 
   const projects=Object.values(db).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
 
   return(
-    <div className="pm-screen"><style>{CSS}</style>
+    <div className="pm-screen">
       <div className="pm-hero">
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
           <div>
@@ -1025,7 +769,6 @@ function BlockDiagram({diagram,onChange,entries,readOnly}){
 
   const subsysRPN=useMemo(()=>{const m={};entries.forEach(e=>{const k=e.subsystem;if(!m[k]||e.rpn>m[k])m[k]=e.rpn;});return m;},[entries]);
   const persist=useCallback((n,e)=>{onChange({nodes:n,edges:e});},[onChange]);
-  const setN=n=>{setNodes(n);persist(n,edges);}
   const setE=e=>{setEdges(e);persist(nodes,e);}
 
   const getPortPos=(node,side)=>{
@@ -1085,7 +828,7 @@ function BlockDiagram({diagram,onChange,entries,readOnly}){
   const addNodeFromPalette=typeStr=>{
     if(readOnly)return;
     const def=NODE_TYPES.find(t=>t.type===typeStr)||NODE_TYPES[0];
-    const nn={id:uid(),type:def.type,label:def.label,subtitle:"",x:Math.round(80+Math.random()*300),y:Math.round(100+Math.random()*200),w:140,h:60,color:def.defaultColor,border:def.defaultBorder};
+    const nn={id:uid(),type:def.type,label:def.label,subtitle:"",x:randomCoord(80,300),y:randomCoord(100,200),w:140,h:60,color:def.defaultColor,border:def.defaultBorder};
     const next=[...nodes,nn];setNodes(next);persist(next,edges);setSelected({type:"node",id:nn.id});
   };
   const deleteSelected=()=>{
@@ -1094,10 +837,11 @@ function BlockDiagram({diagram,onChange,entries,readOnly}){
     else{const ne=edges.filter(e=>e.id!==selected.id);setEdges(ne);persist(nodes,ne);}
     setSelected(null);
   };
+  const onKeyDown=useEffectEvent(e=>{if((e.key==="Delete"||e.key==="Backspace")&&selected&&e.target.tagName!=="INPUT"&&e.target.tagName!=="TEXTAREA")deleteSelected();});
   useEffect(()=>{
-    const h=e=>{if((e.key==="Delete"||e.key==="Backspace")&&selected&&e.target.tagName!=="INPUT"&&e.target.tagName!=="TEXTAREA")deleteSelected();};
+    const h=e=>onKeyDown(e);
     window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);
-  },[selected,nodes,edges,readOnly]);
+  },[]);
   const fitView=()=>{
     if(!nodes.length){setPan({x:0,y:0});setZoom(1);return;}
     const rect=canvasRef.current.getBoundingClientRect();
@@ -1280,7 +1024,7 @@ function BlockDiagram({diagram,onChange,entries,readOnly}){
 // DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
 function Dashboard({entries}){
-  const total=entries.length,crit=entries.filter(e=>e.rpn>200).length,high=entries.filter(e=>e.rpn>100&&e.rpn<=200).length,open=entries.filter(e=>e.status==="Open").length;
+  const total=entries.length,crit=entries.filter(e=>e.rpn>200).length,open=entries.filter(e=>e.status==="Open").length;
   const avgRPN=total?Math.round(entries.reduce((a,e)=>a+e.rpn,0)/total):0;
   const avgRev=total?Math.round(entries.reduce((a,e)=>a+e.revisedRPN,0)/total):0;
   const openComments=entries.reduce((a,e)=>a+(e.comments||[]).filter(c=>c.status==="open").length,0);
@@ -1379,7 +1123,7 @@ function Worksheet({entries,onAdd,onEdit,onDelete,onReview,currentUser,diagramSu
   },[entries,search,fSub,fRisk,fStat,fReview,sort]);
 
   const cs=col=>setSort(s=>({col,dir:s.col===col?-s.dir:-1}));
-  const SB=({col,label})=><span style={{cursor:"pointer"}} onClick={()=>cs(col)}>{label}{sort.col===col?(sort.dir>0?" ↑":" ↓"):""}</span>;
+  const sortHeader=(col,label)=><span style={{cursor:"pointer"}} onClick={()=>cs(col)}>{label}{sort.col===col?(sort.dir>0?" ↑":" ↓"):""}</span>;
 
   return(
     <div>
@@ -1395,17 +1139,17 @@ function Worksheet({entries,onAdd,onEdit,onDelete,onReview,currentUser,diagramSu
       <div className="table-wrap">
         <table>
           <thead><tr>
-            <th><SB col="subsystem" label="Subsystem"/></th>
-            <th><SB col="component" label="Component"/></th>
+            <th>{sortHeader("subsystem","Subsystem")}</th>
+            <th>{sortHeader("component","Component")}</th>
             <th>Failure Mode</th><th>Effect</th>
-            <th><SB col="severity" label="S"/></th>
-            <th><SB col="occurrence" label="O"/></th>
-            <th><SB col="detection" label="D"/></th>
-            <th><SB col="rpn" label="RPN"/></th>
+            <th>{sortHeader("severity","S")}</th>
+            <th>{sortHeader("occurrence","O")}</th>
+            <th>{sortHeader("detection","D")}</th>
+            <th>{sortHeader("rpn","RPN")}</th>
             <th>Action</th><th>Owner</th>
-            <th><SB col="dueDate" label="Due"/></th>
-            <th><SB col="revisedRPN" label="Rev.RPN"/></th>
-            <th><SB col="status" label="Status"/></th>
+            <th>{sortHeader("dueDate","Due")}</th>
+            <th>{sortHeader("revisedRPN","Rev.RPN")}</th>
+            <th>{sortHeader("status","Status")}</th>
             <th>Ver</th>
             <th>Review</th>
             <th>⚙</th>
@@ -1555,7 +1299,7 @@ function ProjectView({projectId,initialDb,currentUser,users,onBack,theme,onToggl
 
   const project=db[projectId];
   const entries=project?.entries||[];
-  const diagram=project?.diagram||{nodes:[],edges:[]};
+  const diagram=project?.diagram||EMPTY_DIAGRAM;
   const diagramSubsystems=useMemo(()=>[...new Set((diagram.nodes||[]).filter(n=>n.type==="subsystem").map(n=>n.label))],[diagram]);
 
   const persist=async(updatedProject)=>{
@@ -1656,7 +1400,7 @@ function ProjectView({projectId,initialDb,currentUser,users,onBack,theme,onToggl
 
   return(
     <>
-      <style>{CSS}</style>
+      
       <div className="app">
         <div className="topbar">
           <span className="logo">DFMEA<span>·TOOL</span></span>
@@ -1750,61 +1494,33 @@ function ThemeToggle({theme,onToggle}){
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOT
 // ─────────────────────────────────────────────────────────────────────────────
-const THEME_KEY="dfmea_theme_v1";
-
 export default function App(){
-  const [users,setUsers]       = useState(null);
+  const [users,setUsers]       = useState(()=>loadUsers()||DEFAULT_USERS);
   const [currentUser,setCurrentUser] = useState(null);
   const [view,setView]         = useState("manager");
   const [projId,setProjId]     = useState(null);
   const [dbSnap,setDbSnap]     = useState(null);
   const [userMgmtOpen,setUserMgmtOpen] = useState(false);
-  const [theme,setTheme]       = useState("dark"); // "dark" | "light"
-
-  // Load users and persisted theme on mount
-  useEffect(()=>{
-    loadUsers().then(saved=>{ setUsers(saved||DEFAULT_USERS); });
-    // load saved theme preference
-    (async()=>{
-      try{
-        const r=await window.storage.get(THEME_KEY);
-        const saved=r?.value;
-        if(saved==="light"||saved==="dark"){
-          setTheme(saved);
-          document.documentElement.setAttribute("data-theme",saved);
-        } else {
-          document.documentElement.setAttribute("data-theme","dark");
-        }
-      }catch{
-        document.documentElement.setAttribute("data-theme","dark");
-      }
-    })();
-  },[]);
+  const [theme,setTheme]       = useState(loadTheme); // "dark" | "light"
 
   // Apply theme to <html> whenever it changes
   useEffect(()=>{
     document.documentElement.setAttribute("data-theme",theme);
   },[theme]);
 
-  const toggleTheme=async()=>{
+  const toggleTheme=()=>{
     const next=theme==="dark"?"light":"dark";
     setTheme(next);
-    try{await window.storage.set(THEME_KEY,next);}catch{}
+    saveTheme(next);
   };
 
   const handleLogin=user=>setCurrentUser(user);
   const handleLogout=()=>{setCurrentUser(null);setView("manager");setProjId(null);};
 
-  const persistUsers=async(list)=>{
+  const persistUsers=list=>{
     setUsers(list);
-    try{await window.storage.set(USERS_KEY,JSON.stringify(list));}catch(e){console.error(e);}
+    saveUsers(list);
   };
-
-  if(!users) return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--muted)",fontFamily:"IBM Plex Mono, monospace"}}>
-      Loading…
-    </div>
-  );
 
   if(!currentUser) return(
     <LoginScreen users={users} onLogin={handleLogin} theme={theme} onToggleTheme={toggleTheme}/>
@@ -1816,18 +1532,14 @@ export default function App(){
   return(
     <>
       {userMgmtOpen&&(
-        <div><style>{CSS}</style>
-          <UserManagementModal users={users} onSave={persistUsers} onClose={()=>setUserMgmtOpen(false)}/>
-        </div>
+        <UserManagementModal users={users} onSave={persistUsers} onClose={()=>setUserMgmtOpen(false)}/>
       )}
       {view==="manager"&&(
         <ProjectManager
           onOpen={openProject}
           currentUser={currentUser}
-          users={users}
           onLogout={handleLogout}
           onManageUsers={()=>setUserMgmtOpen(true)}
-          onSaveUsers={persistUsers}
           theme={theme}
           onToggleTheme={toggleTheme}/>
       )}
