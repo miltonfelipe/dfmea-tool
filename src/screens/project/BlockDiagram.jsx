@@ -57,10 +57,11 @@ export function BlockDiagram({diagram,onChange,entries,readOnly}){
     if(tool==="select"){setSelected({type:"node",id:nodeId});const node=nodes.find(n=>n.id===nodeId);dragRef.current={nodeId,startX:e.clientX,startY:e.clientY,origX:node.x,origY:node.y};}
   };
   const onCanvasMouseMove=useCallback(e=>{
-    if(dragRef.current){const{nodeId,startX,startY,origX,origY}=dragRef.current;const dx=(e.clientX-startX)/zoom,dy=(e.clientY-startY)/zoom;setNodes(prev=>{const next=prev.map(n=>n.id===nodeId?{...n,x:Math.round(origX+dx),y:Math.round(origY+dy)}:n);persist(next,edges);return next;});}
+    if(dragRef.current){const{nodeId,startX,startY,origX,origY}=dragRef.current;const dx=(e.clientX-startX)/zoom,dy=(e.clientY-startY)/zoom;dragRef.current.moved=true;setNodes(prev=>prev.map(n=>n.id===nodeId?{...n,x:Math.round(origX+dx),y:Math.round(origY+dy)}:n));}
     if(panRef.current){const{startX,startY,origPanX,origPanY}=panRef.current;setPan({x:origPanX+(e.clientX-startX),y:origPanY+(e.clientY-startY)});}
-  },[zoom,edges,persist]);
-  const onCanvasMouseUp=useCallback(()=>{dragRef.current=null;panRef.current=null;},[]);
+  },[zoom]);
+  // Save once when a drag ends, not on every mouse move.
+  const onCanvasMouseUp=useCallback(()=>{if(dragRef.current?.moved)persist(nodes,edges);dragRef.current=null;panRef.current=null;},[nodes,edges,persist]);
   const onCanvasMouseDown=e=>{
     if(tool==="pan"){panRef.current={startX:e.clientX,startY:e.clientY,origPanX:pan.x,origPanY:pan.y};return;}
     if(tool==="select")setSelected(null);

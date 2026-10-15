@@ -86,7 +86,7 @@ def add_comment(entry_id: str, body: CommentCreate, db: Session = Depends(get_db
 
 
 @router.post("/comments/{comment_id}/resolve", response_model=CommentOut)
-def resolve_comment(comment_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def resolve_comment(comment_id: str, db: Session = Depends(get_db), user: User = Depends(require_pm)):
     comment = db.get(Comment, comment_id)
     if comment is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Comment not found")

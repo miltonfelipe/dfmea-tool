@@ -3,7 +3,6 @@ export const OCC_LABELS=["—","Extremely Unlikely","Remote","Very Low","Low","M
 export const DET_LABELS=["—","Almost Certain","Very High","High","Moderate-High","Moderate","Low","Very Low","Remote","Extremely Remote","Undetectable"];
 export const FAILURE_CATEGORIES=["Short Circuit","Open Circuit","Overvoltage","Overcurrent","Thermal Runaway","Signal Integrity","EMI/EMC","Corrosion","Mechanical Stress","Firmware Fault","Communication Loss","Power Loss","ESD Damage","Component Drift","Other"];
 export const SUBSYSTEMS=["Power Supply","Motor Drive","Control Logic","I/O Interface","Communication","Sensors","Actuators","Protection Circuit","HMI","Firmware","Safety Module","Other"];
-export const FILE_FORMAT="DFMEA-v2";
 export const NODE_TYPES=[
   {type:"subsystem",label:"Subsystem",  icon:"⬜",defaultColor:"#1e3a5f",defaultBorder:"#00d4ff"},
   {type:"input",    label:"Input",       icon:"→", defaultColor:"#1a3020",defaultBorder:"#22c55e"},

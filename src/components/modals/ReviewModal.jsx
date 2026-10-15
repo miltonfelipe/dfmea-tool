@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ROLES, ROLE_COLORS } from "../../lib/constants.js";
-import { rpnColor, uid, now, fmtDateTime } from "../../lib/utils.js";
+import { rpnColor, fmtDateTime } from "../../lib/utils.js";
 import { UserAvatar } from "../UserAvatar.jsx";
 
 export function ReviewModal({entry,currentUser,users,onAddComment,onResolveComment,onClose}){
@@ -10,7 +10,7 @@ export function ReviewModal({entry,currentUser,users,onAddComment,onResolveComme
 
   const submitComment=()=>{
     if(!text.trim())return;
-    onAddComment(entry.id,{id:uid(),authorId:currentUser.id,text:text.trim(),createdAt:now(),status:"open"});
+    onAddComment(entry.id,text.trim());
     setText("");
   };
 

@@ -3,7 +3,6 @@ export const rpnColor=r=>r<=50?"#22c55e":r<=100?"#ffb020":r<=200?"#ff4444":"#ff2
 export const MATRIX_COLOR=(s,o)=>{const v=s*o;return v<=9?"#22c55e":v<=25?"#84cc16":v<=50?"#ffb020":v<=100?"#f97316":"#ef4444";};
 export const randomCoord=(base,range)=>Math.round(base+Math.random()*range);
 export const uid=()=>Math.random().toString(36).slice(2,9);
-export const now=()=>new Date().toISOString();
 export const fmtDate=d=>d?new Date(d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}):"—";
 export const fmtDateTime=d=>d?new Date(d).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
 export const safeName=s=>s.replace(/[^a-z0-9_-]/gi,"_");

@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { ROLES, ROLE_COLORS } from "../lib/constants.js";
-import { uid, now, fmtDate } from "../lib/utils.js";
-import { loadDB, saveDB } from "../lib/storage.js";
-import { DEMO_ENTRIES, DEMO_DIAGRAM } from "../data/defaults.js";
+import { uid, fmtDate } from "../lib/utils.js";
+import { api } from "../lib/api.js";
 import { Toast } from "../components/Toast.jsx";
 import { UserAvatar } from "../components/UserAvatar.jsx";
 import { ThemeToggle } from "../components/ThemeToggle.jsx";
 import { NewProjectModal } from "../components/modals/NewProjectModal.jsx";
 
 export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,onToggleTheme}){
-  const [db,setDb]=useState(null);
+  const [projects,setProjects]=useState(null);
+  const [loadError,setLoadError]=useState("");
   const [newModal,setNewModal]=useState(false);
   const [delId,setDelId]=useState(null);
   const [drag,setDrag]=useState(false);
@@ -18,46 +18,43 @@ export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,
   const showToast=(msg,type="ok")=>setToast({msg,type,k:uid()});
   const isPM=currentUser.role==="PM";
 
-  useEffect(()=>{loadDB().then(setDb);},[]);
-
-  const persistDB=async(next)=>{setDb(next);await saveDB(next);};
+  const refresh=()=>api.listProjects().then(p=>{setProjects(p);setLoadError("");}).catch(e=>setLoadError(e.message));
+  useEffect(()=>{refresh();},[]);
 
   const createProject=async(meta)=>{
-    const id=uid();
-    const proj={id,...meta,createdAt:now(),updatedAt:now(),createdBy:currentUser.id,
-      entries:meta.demo?DEMO_ENTRIES.map(e=>({...e,id:uid(),createdAt:now(),createdBy:currentUser.id})):[],
-      diagram:meta.demo?DEMO_DIAGRAM:null};
-    delete proj.demo;
-    await persistDB({...(db||{}),[id]:proj});
-    setNewModal(false);showToast(`Project "${proj.name}" created`);
+    try{
+      const proj=await api.createProject(meta);
+      await refresh();
+      setNewModal(false);showToast(`Project "${proj.name}" created`);
+    }catch(e){showToast("Create failed: "+e.message,"err");}
   };
 
   const deleteProject=async(id)=>{
-    const next={...db};delete next[id];
-    await persistDB(next);setDelId(null);showToast("Project deleted","info");
+    try{
+      await api.deleteProject(id);
+      await refresh();
+      setDelId(null);showToast("Project deleted","info");
+    }catch(e){showToast("Delete failed: "+e.message,"err");}
   };
 
   const handleFileImport=async(file)=>{
     try{
-      const text=await file.text();
-      const data=JSON.parse(text);
-      if(!["DFMEA-v1","DFMEA-v2"].includes(data.__format))throw new Error("Unrecognised file format");
-      const proj=data.project;
-      if(!proj?.name||!Array.isArray(proj?.entries))throw new Error("Invalid project data");
-      // ensure entries have version/history/comments fields
-      const entries=(proj.entries||[]).map(e=>({version:1,history:[],comments:[],...e}));
-      const id=uid();
-      const imported={...proj,entries,id,importedAt:now(),updatedAt:now()};
-      await persistDB({...(db||{}),[id]:imported});
+      let data;
+      try{data=JSON.parse(await file.text());}catch{throw new Error("File is not valid JSON");}
+      const imported=await api.importProject(data);
+      await refresh();
       showToast(`Imported "${imported.name}"`);
     }catch(e){showToast("Import failed: "+e.message,"err");}
   };
 
   const onDrop=(e)=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)handleFileImport(f);};
 
-  if(db===null)return(<div className="pm-screen" style={{alignItems:"center",justifyContent:"center"}}><span style={{fontFamily:"var(--mono)",color:"var(--muted)"}}>Loading…</span></div>);
-
-  const projects=Object.values(db).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+  if(projects===null)return(
+    <div className="pm-screen" style={{alignItems:"center",justifyContent:"center",gap:12}}>
+      <span style={{fontFamily:"var(--mono)",color:loadError?"var(--danger)":"var(--muted)"}}>{loadError?`Could not load projects: ${loadError}`:"Loading…"}</span>
+      {loadError&&<button className="btn btn-ghost btn-sm" onClick={refresh}>Retry</button>}
+    </div>
+  );
 
   return(
     <div className="pm-screen">
@@ -101,12 +98,9 @@ export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,
         {projects.length>0&&(
           <div className="pm-grid">
             {projects.map(p=>{
-              const crit=p.entries.filter(e=>e.rpn>200).length;
-              const open=p.entries.filter(e=>e.status==="Open").length;
-              const totalComments=p.entries.reduce((a,e)=>(a+(e.comments||[]).length),0);
-              const openComments=p.entries.reduce((a,e)=>(a+(e.comments||[]).filter(c=>c.status==="open").length),0);
+              const {criticalCount:crit,openCount:open,commentCount:totalComments,openCommentCount:openComments}=p;
               return(
-                <div key={p.id} className="proj-card" onClick={()=>onOpen(p.id,db)}>
+                <div key={p.id} className="proj-card" onClick={()=>onOpen(p.id)}>
                   {isPM&&<div className="proj-card-actions" onClick={ev=>ev.stopPropagation()}>
                     <button className="btn btn-danger btn-sm" onClick={()=>setDelId(p.id)}>✕</button>
                   </div>}
@@ -117,7 +111,7 @@ export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,
                   </div>
                   {p.description&&<div style={{fontSize:12,color:"var(--muted)",marginBottom:10}}>{p.description}</div>}
                   <div className="proj-card-stats">
-                    <div className="proj-stat"><span>{p.entries.length}</span> modes</div>
+                    <div className="proj-stat"><span>{p.entryCount}</span> modes</div>
                     {crit>0&&<div className="proj-stat"><span style={{color:"var(--danger)"}}>{crit}</span> crit</div>}
                     <div className="proj-stat"><span style={{color:open>0?"var(--warn)":"var(--ok)"}}>{open}</span> open</div>
                     {openComments>0&&<div className="proj-stat"><span style={{color:"var(--warn)"}}>💬 {openComments}</span> comments</div>}
@@ -140,7 +134,7 @@ export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,
           <div className="modal modal-sm" onClick={e=>e.stopPropagation()}>
             <div className="modal-header"><span className="modal-title">DELETE PROJECT</span>
               <button className="btn btn-ghost btn-sm" onClick={()=>setDelId(null)}>✕</button></div>
-            <p style={{color:"var(--muted)",marginBottom:8}}>Delete <strong style={{color:"var(--text)"}}>{db[delId]?.name}</strong>?</p>
+            <p style={{color:"var(--muted)",marginBottom:8}}>Delete <strong style={{color:"var(--text)"}}>{projects.find(p=>p.id===delId)?.name}</strong>?</p>
             <p style={{color:"var(--muted)",fontSize:12,marginBottom:24}}>Export first to keep a backup.</p>
             <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
               <button className="btn btn-ghost" onClick={()=>setDelId(null)}>Cancel</button>

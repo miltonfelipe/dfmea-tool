@@ -81,6 +81,7 @@ def test_reviewer_comments_and_resolves(client, pm, rv, demo_project):
     [s] = client.get("/api/projects", headers=pm).json()
     assert s["commentCount"] == 1 and s["openCommentCount"] == 1
 
+    assert client.post(f"/api/comments/{c['id']}/resolve", headers=rv).status_code == 403
     r = client.post(f"/api/comments/{c['id']}/resolve", headers=pm)
     assert r.json()["status"] == "resolved" and r.json()["resolvedAt"].endswith("Z")
     [s] = client.get("/api/projects", headers=pm).json()

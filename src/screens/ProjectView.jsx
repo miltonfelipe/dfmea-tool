@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
-import { FILE_FORMAT, ROLES } from "../lib/constants.js";
-import { uid, now, safeName } from "../lib/utils.js";
-import { saveDB } from "../lib/storage.js";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { ROLES } from "../lib/constants.js";
+import { uid, safeName } from "../lib/utils.js";
+import { api } from "../lib/api.js";
 import { EMPTY_DIAGRAM } from "../data/defaults.js";
 import { Toast } from "../components/Toast.jsx";
 import { UserAvatar } from "../components/UserAvatar.jsx";
@@ -15,8 +15,11 @@ import { Worksheet } from "./project/Worksheet.jsx";
 import { Actions } from "./project/Actions.jsx";
 import { Reference } from "./project/Reference.jsx";
 
-export function ProjectView({projectId,initialDb,currentUser,users,onBack,theme,onToggleTheme}){
-  const [db,setDb]         = useState(initialDb);
+const DIAGRAM_SAVE_DELAY=600; // ms; dragging a block fires many changes
+
+export function ProjectView({projectId,currentUser,users,onBack,theme,onToggleTheme}){
+  const [project,setProject] = useState(null);
+  const [loadError,setLoadError] = useState("");
   const [tab,setTab]       = useState("diagram");
   const [modal,setModal]   = useState(null);
   const [editEntry,setEditEntry]   = useState(null);
@@ -24,98 +27,118 @@ export function ProjectView({projectId,initialDb,currentUser,users,onBack,theme,
   const [settingsOpen,setSettingsOpen] = useState(false);
   const [toast,setToast]   = useState(null);
   const showToast=(msg,type="ok")=>setToast({msg,type,k:uid()});
+  const fail=(what,e)=>showToast(`${what} failed: ${e.message}`,"err");
   const isPM=currentUser.role==="PM";
 
-  const project=db[projectId];
+  const load=useCallback(()=>api.getProject(projectId).then(p=>{setProject(p);setLoadError("");}).catch(e=>setLoadError(e.message)),[projectId]);
+  useEffect(()=>{load();},[load]);
+
   const entries=project?.entries||[];
   const diagram=project?.diagram||EMPTY_DIAGRAM;
   const diagramSubsystems=useMemo(()=>[...new Set((diagram.nodes||[]).filter(n=>n.type==="subsystem").map(n=>n.label))],[diagram]);
 
-  const persist=async(updatedProject)=>{
-    const next={...db,[projectId]:{...updatedProject,updatedAt:now()}};
-    setDb(next);await saveDB(next);
-  };
+  const replaceEntry=entry=>setProject(p=>({...p,entries:p.entries.map(e=>e.id===entry.id?entry:e)}));
 
-  // build diff between old and new entry for versioning
-  const buildDiff=(oldE,newE)=>{
-    const TRACKED=["subsystem","component","function","failureMode","failureEffect","failureCause","category","severity","occurrence","detection","rpn","controls","action","responsible","dueDate","status","revisedS","revisedO","revisedD","revisedRPN"];
-    const diff={};
-    TRACKED.forEach(k=>{if(String(oldE[k]||"")!==String(newE[k]||""))diff[k]={old:oldE[k],new:newE[k]};});
-    return diff;
-  };
-
+  // The server records history and bumps the version; it rejects stale
+  // versions with 409, in which case we reload to show the other edit.
   const saveEntry=async(entry)=>{
-    const idx=entries.findIndex(e=>e.id===entry.id);
-    let savedEntry;
-    if(idx>=0){
-      const old=entries[idx];
-      const diff=buildDiff(old,entry);
-      const hasChanges=Object.keys(diff).length>0;
-      const histEntry={version:old.version||1,editedBy:currentUser.id,editedAt:now(),diff};
-      savedEntry={...entry,
-        version:hasChanges?(old.version||1)+1:(old.version||1),
-        history:hasChanges?[...(old.history||[]),histEntry]:(old.history||[]),
-        comments:old.comments||[],
-        updatedAt:now(),
-      };
-    } else {
-      savedEntry={...entry,version:1,history:[],comments:[],createdAt:now(),createdBy:currentUser.id,updatedAt:now()};
+    const exists=entries.some(e=>e.id===entry.id);
+    try{
+      if(exists){
+        const saved=await api.updateEntry(entry.id,entry);
+        replaceEntry(saved);
+        showToast(`Entry updated (v${saved.version})`);
+      }else{
+        const saved=await api.createEntry(projectId,entry);
+        setProject(p=>({...p,entries:[...p.entries,saved]}));
+        showToast("Entry added");
+      }
+      setModal(null);setEditEntry(null);
+    }catch(e){
+      if(e.status===409){
+        setModal(null);setEditEntry(null);await load();
+        showToast("Someone else changed this entry; reloaded the latest version","err");
+      }else fail("Save",e);
     }
-    const next=idx>=0?entries.map((e,i)=>i===idx?savedEntry:e):[...entries,savedEntry];
-    await persist({...project,entries:next});
-    setModal(null);setEditEntry(null);
-    showToast(idx>=0?`Entry updated (v${savedEntry.version})`:"Entry added");
   };
 
   const deleteEntry=async(id)=>{
-    await persist({...project,entries:entries.filter(e=>e.id!==id)});
-    showToast("Entry deleted","info");
+    try{
+      await api.deleteEntry(id);
+      setProject(p=>({...p,entries:p.entries.filter(e=>e.id!==id)}));
+      showToast("Entry deleted","info");
+    }catch(e){fail("Delete",e);}
   };
 
   const saveSettings=async(meta)=>{
-    await persist({...project,...meta});setSettingsOpen(false);showToast("Settings saved");
+    try{
+      setProject(await api.updateProject(projectId,meta));
+      setSettingsOpen(false);showToast("Settings saved");
+    }catch(e){fail("Save settings",e);}
   };
 
-  const saveDiagram=useCallback(async(d)=>{
-    const next={...db,[projectId]:{...project,diagram:d,updatedAt:now()}};
-    setDb(next);await saveDB(next);
-  },[db,projectId,project]);
+  // Debounced: BlockDiagram reports every drag step and keystroke.
+  const pendingDiagram=useRef(null);
+  const diagramTimer=useRef(null);
+  const flushDiagram=useCallback(()=>{
+    clearTimeout(diagramTimer.current);
+    const d=pendingDiagram.current;
+    if(!d)return;
+    pendingDiagram.current=null;
+    api.saveDiagram(projectId,d).catch(e=>showToast(`Diagram save failed: ${e.message}`,"err"));
+  },[projectId]);
+  const saveDiagram=useCallback(d=>{
+    setProject(p=>({...p,diagram:d})); // keeps worksheet subsystem options current
+    pendingDiagram.current=d;
+    clearTimeout(diagramTimer.current);
+    diagramTimer.current=setTimeout(flushDiagram,DIAGRAM_SAVE_DELAY);
+  },[flushDiagram]);
+  useEffect(()=>flushDiagram,[flushDiagram]); // save pending changes when leaving
 
-  // add comment to entry
-  const addComment=async(entryId,comment)=>{
-    const next=entries.map(e=>e.id===entryId?{...e,comments:[...(e.comments||[]),comment]}:e);
-    await persist({...project,entries:next});
-    // update reviewEntry state so modal refreshes
-    const updated=next.find(e=>e.id===entryId);
-    setReviewEntry(updated);
-    showToast("Comment added","info");
+  const addComment=async(entryId,text)=>{
+    try{
+      const comment=await api.addComment(entryId,text);
+      setProject(p=>({...p,entries:p.entries.map(e=>e.id===entryId?{...e,comments:[...e.comments,comment]}:e)}));
+      showToast("Comment added","info");
+    }catch(e){fail("Comment",e);}
   };
 
-  // resolve comment
   const resolveComment=async(entryId,commentId)=>{
-    const next=entries.map(e=>e.id===entryId?{...e,comments:(e.comments||[]).map(c=>c.id===commentId?{...c,status:"resolved",resolvedBy:currentUser.id,resolvedAt:now()}:c)}:e);
-    await persist({...project,entries:next});
-    const updated=next.find(e=>e.id===entryId);
-    setReviewEntry(updated);
-    showToast("Comment resolved","ok");
+    try{
+      const resolved=await api.resolveComment(commentId);
+      setProject(p=>({...p,entries:p.entries.map(e=>e.id===entryId?{...e,comments:e.comments.map(c=>c.id===commentId?resolved:c)}:e)}));
+      showToast("Comment resolved","ok");
+    }catch(e){fail("Resolve",e);}
   };
 
-  const exportDFMEA=()=>{
-    const payload={__format:FILE_FORMAT,exportedAt:now(),project:{...project}};
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const download=(blob,ext)=>{
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-    a.download=`${safeName(project.name)}_${safeName(project.revision||"A")}.dfmea`;a.click();
-    showToast("Exported .dfmea");
+    a.download=`${safeName(project.name)}_${safeName(project.revision||"A")}.${ext}`;a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const exportDFMEA=async()=>{
+    try{
+      flushDiagram();
+      const payload=await api.exportProject(projectId);
+      download(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),"dfmea");
+      showToast("Exported .dfmea");
+    }catch(e){fail("Export",e);}
   };
   const exportCSV=()=>{
     const cols=["subsystem","component","function","failureMode","failureEffect","failureCause","category","severity","occurrence","detection","rpn","controls","action","responsible","dueDate","status","revisedS","revisedO","revisedD","revisedRPN","version"];
-    const blob=new Blob([[cols.join(","),...entries.map(e=>cols.map(c=>`"${(e[c]||"").toString().replace(/"/g,'""')}"`).join(","))].join("\n")],{type:"text/csv"});
-    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-    a.download=`${safeName(project.name)}_${safeName(project.revision||"A")}.csv`;a.click();
+    download(new Blob([[cols.join(","),...entries.map(e=>cols.map(c=>`"${(e[c]||"").toString().replace(/"/g,'""')}"`).join(","))].join("\n")],{type:"text/csv"}),"csv");
     showToast("Exported CSV");
   };
 
-  if(!project)return null;
+  if(!project)return(
+    <div className="pm-screen" style={{alignItems:"center",justifyContent:"center",gap:12}}>
+      <span style={{fontFamily:"var(--mono)",color:loadError?"var(--danger)":"var(--muted)"}}>{loadError?`Could not load project: ${loadError}`:"Loading…"}</span>
+      {loadError&&<div style={{display:"flex",gap:8}}>
+        <button className="btn btn-ghost btn-sm" onClick={load}>Retry</button>
+        <button className="btn btn-ghost btn-sm" onClick={onBack}>◀ Back</button>
+      </div>}
+    </div>
+  );
 
   const openComments=entries.reduce((a,e)=>a+(e.comments||[]).filter(c=>c.status==="open").length,0);
 
@@ -134,7 +157,7 @@ export function ProjectView({projectId,initialDb,currentUser,users,onBack,theme,
         <div className="topbar">
           <span className="logo">DFMEA<span>·TOOL</span></span>
           <span className={`badge-role badge-${currentUser.role.toLowerCase()}`}>{ROLES[currentUser.role]}</span>
-          <div className="proj-crumb" onClick={onBack}>
+          <div className="proj-crumb" onClick={()=>{flushDiagram();onBack();}}>
             ◀ <span style={{maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{project.name}</span>
             {project.revision&&<span style={{color:"var(--accent)"}}>Rev {project.revision}</span>}
           </div>

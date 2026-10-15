@@ -59,7 +59,7 @@ All routes except `/api/health` and `/api/auth/login` need `Authorization: Beare
 | POST | `/api/projects/{id}/entries` | PM |
 | PATCH, DELETE | `/api/entries/{id}` | PM |
 | POST | `/api/entries/{id}/comments` | any |
-| POST | `/api/comments/{id}/resolve` | any |
+| POST | `/api/comments/{id}/resolve` | PM |
 
 **Versioning:** `PATCH /api/entries/{id}` must include the `version` the client last loaded. If someone saved in between, it returns `409` instead of overwriting. When fields actually change, the server records a history row (`{field: {old, new}}`) and increments the version.
 
@@ -68,4 +68,4 @@ All routes except `/api/health` and `/api/auth/login` need `Authorization: Beare
 ## Notes
 
 - Tables are created on startup (`create_all`). Add Alembic before changing the schema of a database with real data.
-- `app/demo_data.json` is a copy of `DEMO_ENTRIES`/`DEMO_DIAGRAM` from `src/data/defaults.js`; update both together.
+- `app/demo_data.json` holds the demo entries and diagram used by `POST /api/projects` with `demo: true`. Its diagram is also in `src/data/defaults.js` (`DEMO_DIAGRAM`, for the diagram's "load demo" button); keep the two in sync.
