@@ -21,3 +21,7 @@ npm run lint
 ```
 
 Built with React 19 and Vite.
+
+## Backend (optional)
+
+`backend/` contains a FastAPI service for shared, multi-user storage with real logins. The React app does not use it yet. See [backend/README.md](backend/README.md).
