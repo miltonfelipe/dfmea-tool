@@ -1,6 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
+:root{
+  --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;
+  --border:#252d3d;--border2:#2e3a50;
+  --accent:#00d4ff;--accent2:#0099cc;
+  --warn:#ffb020;--danger:#ff4444;--ok:#22c55e;
+  --text:#e8edf5;--muted:#7a8ba0;--shadow:0 4px 24px #00000044;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+
 /* ── DARK THEME (default) ── */
 [data-theme="dark"]{
   --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;
@@ -24,14 +33,6 @@
 }
 
 /* ── Fallback :root so artifact renders before JS applies theme ── */
-:root{
-  --bg:#0b0e14;--surface:#131720;--surface2:#1a2030;
-  --border:#252d3d;--border2:#2e3a50;
-  --accent:#00d4ff;--accent2:#0099cc;
-  --warn:#ffb020;--danger:#ff4444;--ok:#22c55e;
-  --text:#e8edf5;--muted:#7a8ba0;--shadow:0 4px 24px #00000044;
-  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
-}
 
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;transition:background .25s,color .25s}
 ::-webkit-scrollbar{width:6px;height:6px}
