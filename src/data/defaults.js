@@ -13,15 +13,15 @@ export const DEMO_ENTRIES=[
 export const EMPTY_DIAGRAM={nodes:[],edges:[]};
 export const DEMO_DIAGRAM={
   nodes:[
-    {id:"n1",type:"input",  label:"24V DC Supply",subtitle:"External Power",x:60, y:180,w:130,h:60,color:"#1a3020",border:"#22c55e"},
-    {id:"n2",type:"power",  label:"Power Supply",  subtitle:"PSU / DC-DC",  x:260,y:180,w:140,h:60,color:"#3a2f00",border:"#ffb020"},
-    {id:"n3",type:"subsystem",label:"Control Logic",subtitle:"MCU / FPGA",  x:460,y:80, w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
-    {id:"n4",type:"subsystem",label:"Motor Drive",  subtitle:"Gate+IGBT",   x:460,y:200,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
-    {id:"n5",type:"subsystem",label:"I/O Interface",subtitle:"DI/DO Module",x:460,y:320,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
-    {id:"n6",type:"subsystem",label:"Communication",subtitle:"CAN/Ethernet", x:460,y:440,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
-    {id:"n7",type:"output",  label:"AC Motor",     subtitle:"3-Phase Load", x:680,y:200,w:130,h:60,color:"#3a1f10",border:"#f97316"},
-    {id:"n8",type:"external",label:"PLC / SCADA",  subtitle:"Host System",  x:680,y:440,w:130,h:60,color:"#2a1f3a",border:"#a855f7"},
-    {id:"n9",type:"input",   label:"Safety E-Stop",subtitle:"Emergency Stop",x:260,y:320,w:130,h:60,color:"#1a3020",border:"#22c55e"},
+    {id:"n1",type:"input",  label:"24V DC Supply",subtitle:"External Power",x:40,y:320,w:130,h:60,color:"#1a3020",border:"#22c55e"},
+    {id:"n2",type:"power",  label:"Power Supply",  subtitle:"PSU / DC-DC",  x:260,y:320,w:140,h:60,color:"#3a2f00",border:"#ffb020"},
+    {id:"n3",type:"subsystem",label:"Control Logic",subtitle:"MCU / FPGA",  x:480,y:320,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
+    {id:"n4",type:"subsystem",label:"Motor Drive",  subtitle:"Gate+IGBT",   x:480,y:40,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
+    {id:"n5",type:"subsystem",label:"I/O Interface",subtitle:"DI/DO Module",x:260,y:180,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
+    {id:"n6",type:"subsystem",label:"Communication",subtitle:"CAN/Ethernet", x:480,y:460,w:140,h:60,color:"#1e3a5f",border:"#00d4ff"},
+    {id:"n7",type:"output",  label:"AC Motor",     subtitle:"3-Phase Load", x:700,y:40,w:130,h:60,color:"#3a1f10",border:"#f97316"},
+    {id:"n8",type:"external",label:"PLC / SCADA",  subtitle:"Host System",  x:700,y:460,w:130,h:60,color:"#2a1f3a",border:"#a855f7"},
+    {id:"n9",type:"input",   label:"Safety E-Stop",subtitle:"Emergency Stop",x:40,y:180,w:130,h:60,color:"#1a3020",border:"#22c55e"},
   ],
   edges:[
     {id:"e1",from:"n1",to:"n2",label:"24V DC"},{id:"e2",from:"n2",to:"n3",label:"5V Logic"},
