@@ -53,6 +53,11 @@ export const api={
   },
   logout:()=>setToken(null),
   me:()=>request("GET","/auth/me"),
+  // Ends all other sessions; the response carries a new token for this one.
+  async changePassword(currentPassword,newPassword){
+    const r=await request("POST","/auth/password",{currentPassword,newPassword});
+    setToken(r.accessToken);
+  },
 
   listUsers:()=>request("GET","/users"),
   createUser:u=>request("POST","/users",u),

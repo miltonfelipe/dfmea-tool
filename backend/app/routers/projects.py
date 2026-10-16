@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from ..db import get_db
 from ..models import Comment, Entry, EntryHistory, Project, User, utcnow
 from ..schemas import (
-    DfmeaFile, Diagram, ProjectCreate, ProjectOut, ProjectSummary, ProjectUpdate, iso_utc,
+    DfmeaFile, Diagram, DiagramIn, ProjectCreate, ProjectOut, ProjectSummary, ProjectUpdate, iso_utc,
 )
 from ..security import current_user, require_pm
 from ..seed import add_demo_content
@@ -83,7 +83,7 @@ def delete_project(project_id: str, db: Session = Depends(get_db), _: User = Dep
 
 
 @router.put("/{project_id}/diagram", response_model=Diagram)
-def save_diagram(project_id: str, body: Diagram, db: Session = Depends(get_db),
+def save_diagram(project_id: str, body: DiagramIn, db: Session = Depends(get_db),
                  _: User = Depends(require_pm)):
     project = load_project(db, project_id)
     project.diagram = body.model_dump()

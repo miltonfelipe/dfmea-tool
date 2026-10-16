@@ -37,6 +37,8 @@ if [ -z "${DFMEA_SECRET_KEY:-}" ]; then
   DFMEA_SECRET_KEY="$(cat "$KEY_FILE")"
 fi
 export DFMEA_SECRET_KEY
+# Demo accounts (alex/pm123, ...) on a new database. Development only.
+export DFMEA_SEED_DEMO_USERS="${DFMEA_SEED_DEMO_USERS:-true}"
 
 # Each server runs in its own process group (job control on), so cleanup
 # stops exactly those processes, including uvicorn's reloader and npx's node.

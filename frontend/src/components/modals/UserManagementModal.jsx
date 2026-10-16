@@ -12,9 +12,11 @@ export function UserManagementModal({users,currentUser,onSave,onClose}){
   const update=(id,patch)=>setList(l=>l.map(u=>u.id===id?{...u,...patch}:u));
   const addUser=()=>{
     if(!newUser.name||!newUser.username||!newUser.password)return;
-    if(list.some(u=>u.username===newUser.username)){setError(`Username "${newUser.username}" is already taken.`);return;}
+    const username=newUser.username.trim().toLowerCase();  // the server stores usernames lower-case
+    if(list.some(u=>u.username.toLowerCase()===username)){setError(`Username "${username}" is already taken.`);return;}
+    if(newUser.password.length<8){setError("Password must be at least 8 characters.");return;}
     setError("");
-    setList(l=>[...l,{id:uid(),...newUser,active:true,isNew:true}]);
+    setList(l=>[...l,{id:uid(),...newUser,username,active:true,isNew:true}]);
     setNewUser({name:"",username:"",password:"",role:"RV",color:"#a855f7"});
     setAdding(false);
   };
@@ -62,7 +64,7 @@ export function UserManagementModal({users,currentUser,onSave,onClose}){
               <div className="form-group"><label className="label">Username</label><input value={newUser.username} onChange={e=>setNewUser(p=>({...p,username:e.target.value}))}/></div>
             </div>
             <div className="grid2" style={{gap:10}}>
-              <div className="form-group"><label className="label">Password (min 6)</label><input type="password" autoComplete="new-password" value={newUser.password} onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/></div>
+              <div className="form-group"><label className="label">Password (min 8)</label><input type="password" autoComplete="new-password" value={newUser.password} onChange={e=>setNewUser(p=>({...p,password:e.target.value}))}/></div>
               <div className="form-group"><label className="label">Role</label>
                 <select value={newUser.role} onChange={e=>setNewUser(p=>({...p,role:e.target.value}))}>
                   <option value="PM">Project Manager</option><option value="RV">Reviewer</option>

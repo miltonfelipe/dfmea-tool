@@ -42,6 +42,7 @@ cd backend
 python3 -m venv .venv                          # first time only
 .venv/bin/pip install -r requirements-dev.txt  # first time only
 export DFMEA_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+export DFMEA_SEED_DEMO_USERS=true                # demo accounts (development only)
 .venv/bin/uvicorn app.main:app --reload
 ```
 
@@ -61,7 +62,7 @@ Open **http://localhost:5173** and sign in. The dev server forwards `/api` reque
 | `sofia` | `rv123` | Reviewer (comments only) |
 | `bruno` | `rv456` | Reviewer (comments only) |
 
-The backend creates these accounts the first time it starts on an empty database.
+These demo accounts are created on an empty database only in development (`./dev.sh`, or `DFMEA_SEED_DEMO_USERS=true`). Anyone can look these passwords up, so never enable them on a server others can reach. Each user can change their password with **🔑 Password** on the project list.
 
 **Good to know:**
 
@@ -80,15 +81,17 @@ Other commands, from the repo root:
 
 ## Production
 
-Build the front end, then run only the backend. It serves both the app and the API from one process:
+Build the front end, create the first Project Manager, then run only the backend. It serves both the app and the API from one process:
 
 ```bash
 (cd frontend && npm run build)
 cd backend
-DFMEA_SECRET_KEY=<your-key> DFMEA_SEED_DEMO_USERS=false .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+export DFMEA_SECRET_KEY=<a fixed random value, 32+ characters>
+.venv/bin/python -m app.cli create-user --username <name> --role PM     # once; prompts for a password
+.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
 ```
 
-Everything (front end at `/`, API at `/api`) is then served at http://localhost:8000. `DFMEA_SEED_DEMO_USERS=false` stops the demo accounts from being created.
+Everything (front end at `/`, API at `/api`) is then served at http://localhost:8000. Put it behind HTTPS (nginx, Caddy, …) before others use it. See the Security section of [backend/README.md](backend/README.md) for what's protected and how.
 
 ## Moving data from the browser-only version
 

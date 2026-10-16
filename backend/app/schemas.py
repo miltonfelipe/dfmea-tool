@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, ValidationInfo, field_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -23,11 +23,47 @@ class Schema(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)
 
 
+# Input limits. Applied to request models only, so existing data never fails
+# to load. Request bodies as a whole are capped in main.py.
+SHORT_TEXT = 200
+LONG_TEXT = 5000
+_SHORT_FIELDS = {"subsystem", "component", "category", "responsible", "name", "product", "revision",
+                 "team", "color", "author_id", "created_by", "resolved_by", "edited_by"}
+MAX_DIAGRAM_NODES = 500
+MAX_DIAGRAM_EDGES = 2000
+PASSWORD_MIN = 8
+PASSWORD_MAX = 128  # argon2 hashes any length; cap the work per request
+Password = Annotated[str, Field(min_length=PASSWORD_MIN, max_length=PASSWORD_MAX)]
+Color = Annotated[str, Field(pattern=r"^#[0-9A-Fa-f]{3,8}$")]  # rendered into CSS
+
+
+class TextLimits(Schema):
+    """Caps every string field: short fields at SHORT_TEXT, others at LONG_TEXT."""
+
+    @field_validator("*")
+    @classmethod
+    def _limit_length(cls, v, info: ValidationInfo):
+        if isinstance(v, str):
+            limit = SHORT_TEXT if info.field_name in _SHORT_FIELDS else LONG_TEXT
+            if len(v) > limit:
+                raise ValueError(f"must be at most {limit} characters")
+        return v
+
+
+def _normalize_username(v: str) -> str:
+    return v.strip().lower()
+
+
 # ── Auth / users ────────────────────────────────────────────────────────────
 
 class LoginRequest(Schema):
-    username: str
-    password: str
+    username: str = Field(max_length=100)
+    password: str = Field(max_length=PASSWORD_MAX)
+
+
+class PasswordChange(Schema):
+    current_password: str = Field(max_length=PASSWORD_MAX)
+    new_password: Password
 
 
 class UserOut(Schema):
@@ -47,23 +83,29 @@ class TokenOut(Schema):
 
 class UserCreate(Schema):
     name: str = Field(min_length=1, max_length=200)
-    username: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_.-]+$")
-    password: str = Field(min_length=6)
+    # Stored lower-case so "Alex" and "alex" can't be two different accounts.
+    username: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9_.-]+$")
+    password: Password
     role: Role = "RV"
-    color: str = "#00d4ff"
+    color: Color = "#00d4ff"
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def _lower(cls, v):
+        return _normalize_username(v) if isinstance(v, str) else v
 
 
 class UserUpdate(Schema):
     name: str | None = Field(default=None, min_length=1, max_length=200)
-    password: str | None = Field(default=None, min_length=6)
+    password: Password | None = None
     role: Role | None = None
-    color: str | None = None
+    color: Color | None = None
     active: bool | None = None
 
 
 # ── Comments / history ─────────────────────────────────────────────────────
 
-class CommentCreate(Schema):
+class CommentCreate(TextLimits):
     text: str = Field(min_length=1)
 
 
@@ -109,11 +151,11 @@ class EntryFields(Schema):
     revised_d: Rating = 3
 
 
-class EntryCreate(EntryFields):
+class EntryCreate(TextLimits, EntryFields):
     pass
 
 
-class EntryUpdate(Schema):
+class EntryUpdate(TextLimits):
     # Same fields as EntryFields but all optional; `version` is the one the
     # client last saw (optimistic locking).
     version: int
@@ -159,11 +201,11 @@ class ProjectMeta(Schema):
     description: str = ""
 
 
-class ProjectCreate(ProjectMeta):
+class ProjectCreate(TextLimits, ProjectMeta):
     demo: bool = False
 
 
-class ProjectUpdate(Schema):
+class ProjectUpdate(TextLimits):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     product: str | None = None
     revision: str | None = None
@@ -174,6 +216,11 @@ class ProjectUpdate(Schema):
 class Diagram(Schema):
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
+
+
+class DiagramIn(Diagram):
+    nodes: list[dict[str, Any]] = Field(default=[], max_length=MAX_DIAGRAM_NODES)
+    edges: list[dict[str, Any]] = Field(default=[], max_length=MAX_DIAGRAM_EDGES)
 
 
 class ProjectSummary(ProjectMeta):
@@ -199,7 +246,7 @@ class ProjectOut(ProjectMeta):
 
 # ── Import / export (.dfmea files) ─────────────────────────────────────────
 
-class ImportComment(Schema):
+class ImportComment(TextLimits):
     author_id: str | None = None
     text: str
     status: Literal["open", "resolved"] = "open"
@@ -215,7 +262,7 @@ class ImportHistory(Schema):
     diff: dict[str, Any] = {}
 
 
-class ImportEntry(EntryFields):
+class ImportEntry(TextLimits, EntryFields):
     version: int = 1
     created_by: str | None = None
     created_at: datetime | None = None
@@ -223,9 +270,9 @@ class ImportEntry(EntryFields):
     comments: list[ImportComment] = []
 
 
-class ImportProject(ProjectMeta):
+class ImportProject(TextLimits, ProjectMeta):
     revision: str = ""
-    diagram: Diagram | None = None
+    diagram: DiagramIn | None = None
     entries: list[ImportEntry]
 
 

@@ -16,13 +16,15 @@ DEMO_USERS = [
 ]
 
 
-def seed_demo_users(db: Session) -> None:
+def seed_demo_users(db: Session) -> bool:
+    """Create the demo accounts if there are no users yet. Returns True if it did."""
     if db.scalar(select(User.id).limit(1)) is not None:
-        return
+        return False
     for u in DEMO_USERS:
         db.add(User(name=u["name"], username=u["username"], password_hash=hash_password(u["password"]),
                     role=u["role"], color=u["color"]))
     db.commit()
+    return True
 
 
 @cache

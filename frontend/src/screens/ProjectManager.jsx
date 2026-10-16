@@ -6,11 +6,13 @@ import { Toast } from "../components/Toast.jsx";
 import { UserAvatar } from "../components/UserAvatar.jsx";
 import { ThemeToggle } from "../components/ThemeToggle.jsx";
 import { NewProjectModal } from "../components/modals/NewProjectModal.jsx";
+import { ChangePasswordModal } from "../components/modals/ChangePasswordModal.jsx";
 
 export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,onToggleTheme}){
   const [projects,setProjects]=useState(null);
   const [loadError,setLoadError]=useState("");
   const [newModal,setNewModal]=useState(false);
+  const [pwModal,setPwModal]=useState(false);
   const [delId,setDelId]=useState(null);
   const [drag,setDrag]=useState(false);
   const [toast,setToast]=useState(null);
@@ -70,6 +72,7 @@ export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,
               <div style={{fontSize:13,fontWeight:600}}>{currentUser.name}</div>
               <div style={{fontFamily:"var(--mono)",fontSize:10,color:ROLE_COLORS[currentUser.role]}}>{ROLES[currentUser.role]}</div>
             </div>
+            <button className="btn btn-ghost btn-sm" onClick={()=>setPwModal(true)}>🔑 Password</button>
             {isPM&&<button className="btn btn-ghost btn-sm" onClick={onManageUsers}>👥 Users</button>}
             {isPM&&<button className="btn btn-ghost btn-sm" onClick={()=>fileRef.current.click()}>⬆ Import</button>}
             {isPM&&<button className="btn btn-primary btn-sm" onClick={()=>setNewModal(true)}>+ New Project</button>}
@@ -129,6 +132,7 @@ export function ProjectManager({onOpen,currentUser,onLogout,onManageUsers,theme,
       </div>
 
       {newModal&&<NewProjectModal onCreate={createProject} onClose={()=>setNewModal(false)}/>}
+      {pwModal&&<ChangePasswordModal onDone={()=>{setPwModal(false);showToast("Password changed");}} onClose={()=>setPwModal(false)}/>}
       {delId&&(
         <div className="modal-overlay" onClick={()=>setDelId(null)}>
           <div className="modal modal-sm" onClick={e=>e.stopPropagation()}>

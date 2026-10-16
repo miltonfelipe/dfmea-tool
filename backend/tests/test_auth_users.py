@@ -29,19 +29,19 @@ def test_list_users_hides_password_hashes(client, rv):
 
 
 def test_reviewer_cannot_manage_users(client, rv):
-    r = client.post("/api/users", json={"name": "X", "username": "x", "password": "secret1"}, headers=rv)
+    r = client.post("/api/users", json={"name": "X", "username": "x", "password": "secret12"}, headers=rv)
     assert r.status_code == 403
 
 
 def test_pm_creates_user_who_can_log_in(client, pm, login):
     r = client.post("/api/users", json={"name": "Test Reviewer", "username": "tester",
-                                        "password": "secret1", "role": "RV"}, headers=pm)
+                                        "password": "secret12", "role": "RV"}, headers=pm)
     assert r.status_code == 201
-    assert client.get("/api/auth/me", headers=login("tester", "secret1")).json()["name"] == "Test Reviewer"
+    assert client.get("/api/auth/me", headers=login("tester", "secret12")).json()["name"] == "Test Reviewer"
 
 
 def test_duplicate_username_conflicts(client, pm):
-    r = client.post("/api/users", json={"name": "A", "username": "alex", "password": "secret1"}, headers=pm)
+    r = client.post("/api/users", json={"name": "A", "username": "alex", "password": "secret12"}, headers=pm)
     assert r.status_code == 409
 
 
