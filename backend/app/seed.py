@@ -27,7 +27,7 @@ def seed_demo_users(db: Session) -> None:
 
 @cache
 def _demo_data() -> dict:
-    # Generated from src/data/defaults.js (DEMO_ENTRIES / DEMO_DIAGRAM).
+    # The diagram is also in frontend/src/data/defaults.js (DEMO_DIAGRAM); keep them in sync.
     return json.loads((Path(__file__).parent / "demo_data.json").read_text())
 
 

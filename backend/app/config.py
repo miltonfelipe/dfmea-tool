@@ -34,6 +34,6 @@ class Settings:
     # Built front end to serve at "/", if the directory exists.
     static_dir: str = field(
         default_factory=lambda: os.environ.get(
-            "DFMEA_STATIC_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "dist")
+            "DFMEA_STATIC_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
         )
     )

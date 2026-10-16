@@ -19,7 +19,7 @@ export DFMEA_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsaf
 ```
 
 - Interactive API docs: http://localhost:8000/docs
-- If `../dist` exists (`npm run build`), the front end is also served at http://localhost:8000/
+- If `../frontend/dist` exists (`cd frontend && npm run build`), the front end is also served at http://localhost:8000/
 
 ## Test
 
@@ -37,7 +37,7 @@ cd backend
 | `DFMEA_TOKEN_TTL_MINUTES` | `720` | Login lifetime |
 | `DFMEA_SEED_DEMO_USERS` | `true` | Creates `alex/pm123` (PM), `sofia/rv123`, `bruno/rv456` (RV) when the user table is empty. **Set to `false` in production** |
 | `DFMEA_CORS_ORIGINS` | `http://localhost:5173` | Comma-separated; the Vite dev server |
-| `DFMEA_STATIC_DIR` | `../dist` | Built front end to serve at `/` |
+| `DFMEA_STATIC_DIR` | `../frontend/dist` | Built front end to serve at `/` |
 
 ## API
 
@@ -68,4 +68,4 @@ All routes except `/api/health` and `/api/auth/login` need `Authorization: Beare
 ## Notes
 
 - Tables are created on startup (`create_all`). Add Alembic before changing the schema of a database with real data.
-- `app/demo_data.json` holds the demo entries and diagram used by `POST /api/projects` with `demo: true`. Its diagram is also in `src/data/defaults.js` (`DEMO_DIAGRAM`, for the diagram's "load demo" button); keep the two in sync.
+- `app/demo_data.json` holds the demo entries and diagram used by `POST /api/projects` with `demo: true`. Its diagram is also in `frontend/src/data/defaults.js` (`DEMO_DIAGRAM`, for the diagram's "load demo" button); keep the two in sync.

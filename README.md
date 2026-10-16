@@ -9,7 +9,15 @@ A web-based Design Failure Mode and Effects Analysis (DFMEA) tool for electronic
 - **Roles**: Project Manager (edit) and Reviewer (comment)
 - **Import / export**: projects as `.dfmea` (JSON) files, worksheet as CSV
 
-React 19 + Vite front end (`src/`) and a FastAPI backend (`backend/`) that stores everything in a database, so a team works on the same projects. Only the light/dark theme is kept in the browser.
+React 19 + Vite front end and a FastAPI backend that stores everything in a database, so a team works on the same projects. Only the light/dark theme is kept in the browser.
+
+## Project layout
+
+```
+dfmea-tool/
+├── frontend/    React app (Vite): src/, public/, package.json
+└── backend/     FastAPI app: app/, tests/, requirements.txt
+```
 
 ## Running the app
 
@@ -28,6 +36,7 @@ export DFMEA_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsaf
 **Terminal 2: front end**
 
 ```bash
+cd frontend
 npm install      # first time only
 npm run dev
 ```
@@ -49,12 +58,12 @@ The backend creates these accounts the first time it starts on an empty database
 - **Trying several users:** open a second browser window (or a private window) and log in as someone else to see shared data and comments.
 - **Configuration:** all backend settings are environment variables, listed in [backend/README.md](backend/README.md).
 
-Other commands:
+Other commands, from the repo root:
 
 ```bash
-npm run build                 # production build to dist/
-npm run lint
-cd backend && .venv/bin/pytest
+(cd frontend && npm run build)      # production build to frontend/dist/
+(cd frontend && npm run lint)
+(cd backend && .venv/bin/pytest)
 ```
 
 ## Production
@@ -62,7 +71,7 @@ cd backend && .venv/bin/pytest
 Build the front end, then run only the backend. It serves both the app and the API from one process:
 
 ```bash
-npm run build
+(cd frontend && npm run build)
 cd backend
 DFMEA_SECRET_KEY=<your-key> DFMEA_SEED_DEMO_USERS=false .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
