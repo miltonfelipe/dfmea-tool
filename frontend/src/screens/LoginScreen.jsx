@@ -1,14 +1,6 @@
 import { useState } from "react";
-import { ROLES, ROLE_COLORS } from "../lib/constants.js";
 import { api } from "../lib/api.js";
 import { ThemeToggle } from "../components/ThemeToggle.jsx";
-
-// Accounts the backend seeds on an empty database (DFMEA_SEED_DEMO_USERS).
-const DEMO_ACCOUNTS=[
-  {username:"alex",password:"pm123",role:"PM"},
-  {username:"sofia",password:"rv123",role:"RV"},
-  {username:"bruno",password:"rv456",role:"RV"},
-];
 
 export function LoginScreen({onLogin, notice, theme, onToggleTheme}){
   const [username,setUsername]=useState("");
@@ -48,16 +40,6 @@ export function LoginScreen({onLogin, notice, theme, onToggleTheme}){
           </div>
           <button className="btn btn-primary" type="submit" disabled={busy} style={{justifyContent:"center"}}>{busy?"Signing in…":"Sign In"}</button>
         </form>
-
-        {import.meta.env.DEV&&(
-          <div style={{marginTop:24,padding:"12px 14px",background:"var(--surface2)",borderRadius:6,border:"1px solid var(--border)"}}>
-            <div className="label" style={{marginBottom:8}}>Demo Accounts (dev only)</div>
-            {DEMO_ACCOUNTS.map(u=><div key={u.username} style={{fontSize:11,color:"var(--muted)",fontFamily:"var(--mono)",marginBottom:3,cursor:"pointer"}}
-              onClick={()=>{setUsername(u.username);setPassword(u.password);}}>
-              @{u.username} / {u.password} — <span style={{color:ROLE_COLORS[u.role]}}>{ROLES[u.role]}</span>
-            </div>)}
-          </div>
-        )}
       </div>
     </div>
   );
