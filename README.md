@@ -21,7 +21,19 @@ dfmea-tool/
 
 ## Running the app
 
-You run two processes in two terminals: the Python backend and the React front end.
+From the repo root, start both servers with one command:
+
+```bash
+./dev.sh
+```
+
+Then open **http://localhost:5173**. The output of both servers appears in the same terminal, prefixed with `[api]` and `[web]`, and **Ctrl+C** stops both. On the first run the script also sets up the Python virtualenv and installs the npm packages.
+
+It keeps a dev login key in `backend/.dev-secret-key` (gitignored), so you stay logged in when the backend restarts. If ports 8000 or 5173 are taken, it stops with a message; choose others with `API_PORT=8001 WEB_PORT=5174 ./dev.sh`. The script needs bash, so on Windows use WSL or the manual steps below.
+
+### Manual start (two terminals)
+
+You can also run the Python backend and the React front end in separate terminals.
 
 **Terminal 1: backend** (http://localhost:8000, interactive API docs at http://localhost:8000/docs)
 
@@ -54,7 +66,7 @@ The backend creates these accounts the first time it starts on an empty database
 **Good to know:**
 
 - **Your data:** it's saved in `backend/dfmea.db`. Delete that file to start fresh.
-- **Logins after a restart:** the `export` above makes a new random key each time, so every backend restart logs everyone out. To stay logged in across restarts, generate a key once and reuse the same value.
+- **Logins after a restart:** the `export` above makes a new random key each time, so every backend restart logs everyone out. To stay logged in across restarts, generate a key once and reuse the same value (`./dev.sh` does this for you).
 - **Trying several users:** open a second browser window (or a private window) and log in as someone else to see shared data and comments.
 - **Configuration:** all backend settings are environment variables, listed in [backend/README.md](backend/README.md).
 
